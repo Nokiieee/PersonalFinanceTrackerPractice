@@ -1,7 +1,19 @@
 import api from "./api";
 
+// GET /api/transactions/summary
+// Returns { balance, totalIncome, totalExpenses } for the logged-in user
+export async function getSummary() {
+  const { data } = await api.get("/transactions/summary");
+  return data.data;
+}
+
+// GET /api/transactions
+export async function getTransactions() {
+  const { data } = await api.get("/transactions");
+  return data.data;
+}
+
 // POST /api/transactions
-// Backend responds with { success, data, message } — we just need `data`.
 export async function createTransaction({
   amount,
   category,
@@ -16,12 +28,6 @@ export async function createTransaction({
     date,
     description,
   });
-  return data.data;
-}
-
-// GET /api/transactions
-export async function getTransactions() {
-  const { data } = await api.get("/transactions");
   return data.data;
 }
 
