@@ -28,28 +28,37 @@ export default function Login() {
       await login(form.username.trim(), form.password);
       navigate("/dashboard", { replace: true });
     } catch (err) {
-      setError(err.response?.data?.message || "Login failed. Please try again.");
+      setError(
+        err.response?.data?.message || "Login failed. Please try again.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-slate-950 px-4">
-      <div className="w-full max-w-sm">
-        {/* Brand */}
-        <div className="flex flex-col items-center mb-8">
-          <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-emerald-500/15 text-emerald-400 mb-3">
-            <Wallet size={24} strokeWidth={2} />
-          </div>
-          <h1 className="text-[22px] font-semibold text-slate-50 tracking-tight">
-            Monetra
-          </h1>
-          <p className="text-[13px] text-slate-500 mt-1">Sign in to your account</p>
+    <div className="relative min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      {/* Brand — absolute top-left, out of flow so form stays truly centered */}
+      <div className="absolute top-0 left-0 flex items-center gap-3 px-6 h-16">
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/15 text-emerald-400 shrink-0">
+          <Wallet size={18} strokeWidth={2.25} />
         </div>
+        <span className="font-semibold text-[20px] md:text-[24px] tracking-tight text-slate-50">
+          Monetra<span className="text-emerald-400">.</span>
+        </span>
+      </div>
 
-        {/* Card */}
+      {/* Form — perfectly centered */}
+      <div className="w-full max-w-sm">
         <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl shadow-slate-950/50">
+          {/* Title + divider */}
+          <div className="mb-5">
+            <h1 className="text-[17px] font-semibold text-slate-100 tracking-tight">
+              Sign in to your account
+            </h1>
+            <div className="mt-3 h-px bg-white/10" />
+          </div>
+
           {error && (
             <div className="mb-4 rounded-xl bg-rose-500/10 border border-rose-500/30 px-3.5 py-2.5">
               <p className="text-[13px] text-rose-400">{error}</p>
@@ -123,7 +132,10 @@ export default function Login() {
         {/* Register link */}
         <p className="text-center text-[13px] text-slate-500 mt-5">
           Don&apos;t have an account?{" "}
-          <Link to="/register" className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors">
+          <Link
+            to="/register"
+            className="text-emerald-400 hover:text-emerald-300 font-medium transition-colors"
+          >
             Create one
           </Link>
         </p>
