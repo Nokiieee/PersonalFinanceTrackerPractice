@@ -16,7 +16,7 @@ if (!process.env.JWT_SECRET) {
 const app = express();
 
 // MIDDLEWARE
-app.use(cors({ origin: "http://localhost:5173" }));
+app.use(cors());
 app.use(express.json());
 
 // ROUTES
@@ -79,13 +79,11 @@ app.post("/api/transactions", protect, async (req, res) => {
       userId: req.user._id, // always taken from the token, never from the request body
     });
     await newTransaction.save();
-    res
-      .status(201)
-      .json({
-        success: true,
-        data: newTransaction,
-        message: "Transaction created",
-      });
+    res.status(201).json({
+      success: true,
+      data: newTransaction,
+      message: "Transaction created",
+    });
   } catch (error) {
     console.error("Error creating transaction:", error.message);
     if (error.name === "ValidationError") {
@@ -148,7 +146,9 @@ app.put("/api/transactions/:id", protect, async (req, res) => {
   }
 });
 
-app.listen(5000, () => {
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
   connectDB();
   console.log("server is live on port 5000!");
 });
