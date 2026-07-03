@@ -74,6 +74,7 @@ export default function Register() {
       </div>
 
       {/* Form — perfectly centered */}
+
       <div className="w-full max-w-sm">
         <div className="rounded-2xl bg-slate-900 border border-slate-800 p-6 shadow-xl shadow-slate-950/50">
           {/* Title + divider */}

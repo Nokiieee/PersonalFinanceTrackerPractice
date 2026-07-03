@@ -14,6 +14,7 @@ const formatDate = (dateStr) =>
     year: "numeric",
     month: "short",
     day: "numeric",
+    timeZone: "Asia/Manila",
   });
 
 const TYPE_FILTERS = ["All", "Income", "Expense"];

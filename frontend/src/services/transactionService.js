@@ -1,19 +1,25 @@
 import api from "./api";
 
-// GET /api/transactions/summary
-// Returns { balance, totalIncome, totalExpenses } for the logged-in user
 export async function getSummary() {
   const { data } = await api.get("/transactions/summary");
   return data.data;
 }
 
-// GET /api/transactions
+export async function getCategoryBreakdown() {
+  const { data } = await api.get("/transactions/category-breakdown");
+  return data.data; // [{ category, total, percentage }]
+}
+
+export async function getMonthlySpending() {
+  const { data } = await api.get("/transactions/monthly-spending");
+  return data.data; // [{ month, income, expense }]
+}
+
 export async function getTransactions() {
   const { data } = await api.get("/transactions");
   return data.data;
 }
 
-// POST /api/transactions
 export async function createTransaction({
   amount,
   category,
@@ -31,14 +37,20 @@ export async function createTransaction({
   return data.data;
 }
 
-// DELETE /api/transactions/:id
 export async function deleteTransaction(id) {
   const { data } = await api.delete(`/transactions/${id}`);
   return data;
 }
 
-// PUT /api/transactions/:id
 export async function updateTransaction(id, updates) {
   const { data } = await api.put(`/transactions/${id}`, updates);
   return data.data;
+}
+
+// GET /api/transactions/report?startDate=...&endDate=...
+export async function getReport(startDate, endDate) {
+  const { data } = await api.get(
+    `/transactions/report?startDate=${startDate}&endDate=${endDate}`,
+  );
+  return data.data; // { current: { totalIncome, totalExpenses, savings, savingsRate, categoryBreakdown, dailyTrend }, previous }
 }
