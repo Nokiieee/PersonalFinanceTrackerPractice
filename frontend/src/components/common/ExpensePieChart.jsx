@@ -7,7 +7,6 @@ import {
   Legend,
 } from "recharts";
 
-// Consistent colour palette — one per slice
 const COLORS = [
   "#34d399", // emerald
   "#60a5fa", // blue
@@ -40,9 +39,16 @@ function CustomTooltip({ active, payload }) {
 }
 
 function CustomLegend({ payload }) {
+  // Always push "Other" to the end regardless of data order
+  const sorted = [...payload].sort((a, b) => {
+    if (a.value.toLowerCase() === "other") return 1;
+    if (b.value.toLowerCase() === "other") return -1;
+    return 0;
+  });
+
   return (
     <ul className="flex flex-wrap justify-center gap-x-4 gap-y-1.5 mt-3">
-      {payload.map((entry, i) => (
+      {sorted.map((entry, i) => (
         <li
           key={i}
           className="flex items-center gap-1.5 text-[12px] text-slate-400"
