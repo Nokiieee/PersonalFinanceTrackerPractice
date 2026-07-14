@@ -3,6 +3,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import { connectDB } from "./config/db.js";
 import Transaction from "./models/transaction.model.js";
+import Budget from "./models/budget.model.js";
 import authRoutes from "./routes/auth.routes.js";
 import { protect } from "./middleware/auth.middleware.js";
 
@@ -15,19 +16,15 @@ if (!process.env.JWT_SECRET) {
 
 const app = express();
 
-// MIDDLEWARE
 app.use(cors());
 app.use(express.json());
 
-// ROUTES
 app.get("/", (req, res) => res.send("server is live!"));
 
-// Auth (public)
 app.use("/api/auth", authRoutes);
 
-// --- Transactions (all protected) ---
+// ─── Transaction Routes ───────────────────────────────────────────────────────
 
-// GET /api/transactions/summary
 app.get("/api/transactions/summary", protect, async (req, res) => {
   try {
     const result = await Transaction.aggregate([
@@ -45,12 +42,11 @@ app.get("/api/transactions/summary", protect, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching summary:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// GET /api/transactions/category-breakdown
 app.get("/api/transactions/category-breakdown", protect, async (req, res) => {
   try {
     const result = await Transaction.aggregate([
@@ -67,12 +63,11 @@ app.get("/api/transactions/category-breakdown", protect, async (req, res) => {
     }));
     res.status(200).json({ success: true, data });
   } catch (error) {
-    console.error("Error fetching category breakdown:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// GET /api/transactions/monthly-spending
 app.get("/api/transactions/monthly-spending", protect, async (req, res) => {
   try {
     const year = new Date().getFullYear();
@@ -120,13 +115,11 @@ app.get("/api/transactions/monthly-spending", protect, async (req, res) => {
     });
     res.status(200).json({ success: true, data });
   } catch (error) {
-    console.error("Error fetching monthly spending:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// GET /api/transactions/report?startDate=YYYY-MM-DD&endDate=YYYY-MM-DD
-// Returns current period stats, previous period stats, category breakdown, and daily trend
 app.get("/api/transactions/report", protect, async (req, res) => {
   try {
     const { startDate, endDate } = req.query;
@@ -138,17 +131,14 @@ app.get("/api/transactions/report", protect, async (req, res) => {
           message: "startDate and endDate are required",
         });
     }
-
     const start = new Date(startDate);
     const end = new Date(endDate);
-    end.setHours(23, 59, 59, 999); // include the full end day
+    end.setHours(23, 59, 59, 999);
 
-    // Previous period: same length, immediately before
     const periodMs = end - start;
     const prevEnd = new Date(start.getTime() - 1);
     const prevStart = new Date(prevEnd.getTime() - periodMs);
 
-    // Helper: aggregate income + expenses for a date range
     const getPeriodTotals = async (from, to) => {
       const result = await Transaction.aggregate([
         { $match: { userId: req.user._id, date: { $gte: from, $lte: to } } },
@@ -163,7 +153,6 @@ app.get("/api/transactions/report", protect, async (req, res) => {
       };
     };
 
-    // Category breakdown for current period (expenses only)
     const categoryResult = await Transaction.aggregate([
       {
         $match: {
@@ -182,7 +171,6 @@ app.get("/api/transactions/report", protect, async (req, res) => {
       percentage: totalExp > 0 ? Math.round((r.total / totalExp) * 100) : 0,
     }));
 
-    // Daily trend for current period
     const trendResult = await Transaction.aggregate([
       { $match: { userId: req.user._id, date: { $gte: start, $lte: end } } },
       {
@@ -197,7 +185,6 @@ app.get("/api/transactions/report", protect, async (req, res) => {
       { $sort: { "_id.day": 1 } },
     ]);
 
-    // Build a map of all days in range
     const dayMap = {};
     const cursor = new Date(start);
     while (cursor <= end) {
@@ -206,8 +193,7 @@ app.get("/api/transactions/report", protect, async (req, res) => {
       cursor.setDate(cursor.getDate() + 1);
     }
     for (const r of trendResult) {
-      const key = r._id.day;
-      if (dayMap[key]) dayMap[key][r._id.type] = r.total;
+      if (dayMap[r._id.day]) dayMap[r._id.day][r._id.type] = r.total;
     }
     const dailyTrend = Object.values(dayMap);
 
@@ -229,12 +215,11 @@ app.get("/api/transactions/report", protect, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching report:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// GET /api/transactions
 app.get("/api/transactions", protect, async (req, res) => {
   try {
     const transactions = await Transaction.find({ userId: req.user._id }).sort({
@@ -243,12 +228,11 @@ app.get("/api/transactions", protect, async (req, res) => {
     });
     res.status(200).json({ success: true, data: transactions });
   } catch (error) {
-    console.error("Error fetching transactions:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// POST /api/transactions
 app.post("/api/transactions", protect, async (req, res) => {
   try {
     const newTransaction = new Transaction({
@@ -264,7 +248,7 @@ app.post("/api/transactions", protect, async (req, res) => {
         message: "Transaction created",
       });
   } catch (error) {
-    console.error("Error creating transaction:", error.message);
+    console.error(error.message);
     if (error.name === "ValidationError") {
       return res.status(400).json({
         success: false,
@@ -277,7 +261,6 @@ app.post("/api/transactions", protect, async (req, res) => {
   }
 });
 
-// DELETE /api/transactions/:id
 app.delete("/api/transactions/:id", protect, async (req, res) => {
   try {
     const deleted = await Transaction.findOneAndDelete({
@@ -290,12 +273,11 @@ app.delete("/api/transactions/:id", protect, async (req, res) => {
         .json({ success: false, message: "Transaction not found" });
     res.status(200).json({ success: true, message: "Transaction deleted" });
   } catch (error) {
-    console.error("Error deleting transaction:", error.message);
+    console.error(error.message);
     res.status(500).json({ success: false, message: "Server Error" });
   }
 });
 
-// PUT /api/transactions/:id
 app.put("/api/transactions/:id", protect, async (req, res) => {
   try {
     const updated = await Transaction.findOneAndUpdate(
@@ -309,7 +291,7 @@ app.put("/api/transactions/:id", protect, async (req, res) => {
         .json({ success: false, message: "Transaction not found" });
     res.status(200).json({ success: true, data: updated });
   } catch (error) {
-    console.error("Error updating transaction:", error.message);
+    console.error(error.message);
     if (error.name === "ValidationError") {
       return res.status(400).json({
         success: false,
@@ -322,14 +304,138 @@ app.put("/api/transactions/:id", protect, async (req, res) => {
   }
 });
 
+// ─── Budget Routes ────────────────────────────────────────────────────────────
+
+// GET /api/budgets
+// Returns all budgets with expense totals and category breakdown.
+// Auto-creates current month if it doesn't exist yet.
+app.get("/api/budgets", protect, async (req, res) => {
+  try {
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    // Auto-create current month budget if missing
+    const exists = await Budget.findOne({
+      userId: req.user._id,
+      month: currentMonth,
+    });
+    if (!exists) {
+      // Inherit amount from the most recent previous budget
+      const latest = await Budget.findOne({ userId: req.user._id }).sort({
+        month: -1,
+      });
+      await Budget.create({
+        userId: req.user._id,
+        month: currentMonth,
+        amount: latest?.amount ?? 0,
+      });
+    }
+
+    const budgets = await Budget.find({ userId: req.user._id }).sort({
+      month: -1,
+    });
+
+    // For each budget, aggregate expenses + category breakdown
+    const enriched = await Promise.all(
+      budgets.map(async (b) => {
+        const [year, month] = b.month.split("-").map(Number);
+        const start = new Date(year, month - 1, 1);
+        const end = new Date(year, month, 0, 23, 59, 59, 999);
+
+        // Category breakdown with individual transactions
+        const transactions = await Transaction.find({
+          userId: req.user._id,
+          type: "expense",
+          date: { $gte: start, $lte: end },
+        }).sort({ date: -1 });
+
+        // Group transactions by category
+        const categoryMap = {};
+        for (const t of transactions) {
+          if (!categoryMap[t.category]) {
+            categoryMap[t.category] = {
+              category: t.category,
+              total: 0,
+              transactions: [],
+            };
+          }
+          categoryMap[t.category].total += t.amount;
+          categoryMap[t.category].transactions.push(t);
+        }
+
+        const totalExpenses = transactions.reduce(
+          (sum, t) => sum + t.amount,
+          0,
+        );
+        const categoryBreakdown = Object.values(categoryMap)
+          .sort((a, z) => z.total - a.total)
+          .map((c) => ({
+            ...c,
+            percentage:
+              b.amount > 0 ? Math.round((c.total / b.amount) * 100) : 0,
+          }));
+
+        // Days left in month (only relevant for current month)
+        const daysInMonth = new Date(year, month, 0).getDate();
+        const today = new Date();
+        const daysLeft =
+          b.month === currentMonth ? daysInMonth - today.getDate() : 0;
+
+        return {
+          _id: b._id,
+          month: b.month,
+          amount: b.amount,
+          totalExpenses,
+          remaining: b.amount - totalExpenses,
+          percentageUsed:
+            b.amount > 0 ? Math.round((totalExpenses / b.amount) * 100) : 0,
+          daysLeft,
+          isCurrentMonth: b.month === currentMonth,
+          categoryBreakdown,
+        };
+      }),
+    );
+
+    res.status(200).json({ success: true, data: enriched });
+  } catch (error) {
+    console.error("Error fetching budgets:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+
+// PUT /api/budgets/:id — update budget amount
+app.put("/api/budgets/:id", protect, async (req, res) => {
+  try {
+    const { amount } = req.body;
+    if (amount === undefined || amount < 0) {
+      return res
+        .status(400)
+        .json({ success: false, message: "Invalid budget amount" });
+    }
+    const updated = await Budget.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user._id },
+      { amount },
+      { new: true, runValidators: true },
+    );
+    if (!updated)
+      return res
+        .status(404)
+        .json({ success: false, message: "Budget not found" });
+    res.status(200).json({ success: true, data: updated });
+  } catch (error) {
+    console.error("Error updating budget:", error.message);
+    res.status(500).json({ success: false, message: "Server Error" });
+  }
+});
+
+// ─── Start Server ─────────────────────────────────────────────────────────────
+
 const PORT = process.env.PORT || 5000;
 
 const startServer = async () => {
   try {
     await connectDB();
-    app.listen(PORT, () => {
-      console.log(`Server is live on port ${PORT}!`);
-    });
+    app.listen(PORT, () => console.log(`Server is live on port ${PORT}!`));
   } catch (err) {
     console.error("Failed to connect to MongoDB:", err);
     process.exit(1);
