@@ -22,14 +22,16 @@ export default function TransactionForm({
   onCancel,
   isSubmitting = false,
   submitError = null,
+  initialValues = null,
+  isEdit = false,
 }) {
   const categories = getCategoriesForType(type);
 
   const [form, setForm] = useState({
-    amount: "",
-    category: "",
-    date: todayISO(),
-    description: "",
+    amount: initialValues?.amount != null ? String(initialValues.amount) : "",
+    category: initialValues?.category ?? "",
+    date: initialValues?.date ?? todayISO(),
+    description: initialValues?.description ?? "",
   });
   const [errors, setErrors] = useState({});
 
@@ -72,15 +74,17 @@ export default function TransactionForm({
     <form onSubmit={handleSubmit} className="space-y-4">
       {/* Header */}
       <div className="flex items-center gap-2.5">
-        <button
-          type="button"
-          onClick={onBack}
-          disabled={isSubmitting}
-          className="text-slate-500 hover:text-slate-300 p-1 -ml-1 rounded-md hover:bg-slate-800 transition-colors disabled:opacity-50"
-          aria-label="Back"
-        >
-          <ArrowLeft size={18} />
-        </button>
+        {!isEdit && (
+          <button
+            type="button"
+            onClick={onBack}
+            disabled={isSubmitting}
+            className="text-slate-500 hover:text-slate-300 p-1 -ml-1 rounded-md hover:bg-slate-800 transition-colors disabled:opacity-50"
+            aria-label="Back"
+          >
+            <ArrowLeft size={18} />
+          </button>
+        )}
         <span
           className={`flex h-8 w-8 items-center justify-center rounded-full shrink-0 ${
             isIncome
@@ -95,7 +99,13 @@ export default function TransactionForm({
           )}
         </span>
         <h2 className="text-[15px] font-semibold text-slate-50">
-          {isIncome ? "Add Income" : "Add Expense"}
+          {isEdit
+            ? isIncome
+              ? "Edit Income"
+              : "Edit Expense"
+            : isIncome
+              ? "Add Income"
+              : "Add Expense"}
         </h2>
       </div>
 
@@ -227,7 +237,9 @@ export default function TransactionForm({
           {isSubmitting && <Loader2 size={15} className="animate-spin" />}
           {isSubmitting
             ? "Saving..."
-            : `Save ${isIncome ? "Income" : "Expense"}`}
+            : isEdit
+              ? "Save Changes"
+              : `Save ${isIncome ? "Income" : "Expense"}`}
         </button>
       </div>
     </form>

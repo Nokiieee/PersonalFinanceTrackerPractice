@@ -1,6 +1,19 @@
-import { useEffect, useState } from "react";
-import { ArrowDownCircle, ArrowUpCircle, SearchX, Inbox } from "lucide-react";
-import { getTransactions } from "../services/transactionService";
+import { useEffect, useState, useCallback } from "react";
+import {
+  ArrowDownCircle,
+  ArrowUpCircle,
+  SearchX,
+  Inbox,
+  Pencil,
+  Trash2,
+} from "lucide-react";
+import {
+  getTransactions,
+  updateTransaction,
+  deleteTransaction,
+} from "../services/transactionService";
+import EditTransactionModal from "../components/layout/EditTransactionModal";
+import ConfirmModal from "../components/common/ConfirmModal";
 
 const formatAmount = (amount, type) =>
   new Intl.NumberFormat("en-PH", {
@@ -26,19 +39,54 @@ export default function Transactions() {
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState("All");
 
-  useEffect(() => {
-    async function fetchTransactions() {
-      try {
-        const data = await getTransactions();
-        setTransactions(data);
-      } catch (err) {
-        setError(err.response?.data?.message || "Failed to load transactions.");
-      } finally {
-        setLoading(false);
-      }
+  const [editTarget, setEditTarget] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getTransactions();
+      setTransactions(data);
+    } catch (err) {
+      setError(err.response?.data?.message || "Failed to load transactions.");
+    } finally {
+      setLoading(false);
     }
-    fetchTransactions();
   }, []);
+
+  useEffect(() => {
+    load();
+  }, [load]);
+
+  const handleUpdateTransaction = async (payload) => {
+    setIsSubmitting(true);
+    setSubmitError(null);
+    try {
+      await updateTransaction(editTarget._id, payload);
+      setEditTarget(null);
+      await load();
+    } catch (err) {
+      setSubmitError(
+        err.response?.data?.message || "Failed to save. Please try again.",
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    try {
+      await deleteTransaction(deleteTarget._id);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setDeleteTarget(null);
+      await load();
+    }
+  };
 
   const filtered = transactions.filter((t) => {
     const matchesType =
@@ -109,7 +157,7 @@ export default function Transactions() {
       {/* Table card */}
       <div className="rounded-2xl bg-slate-900 border border-slate-800/80 overflow-hidden">
         {/* Table header */}
-        <div className="hidden sm:grid grid-cols-[1fr_1.5fr_1fr_1fr] gap-4 px-5 py-3 border-b border-slate-800/80">
+        <div className="hidden sm:grid grid-cols-[1fr_1.5fr_1fr_1fr_72px] gap-4 px-5 py-3 border-b border-slate-800/80">
           {["Date", "Description", "Category", "Amount"].map((h) => (
             <p
               key={h}
@@ -118,6 +166,7 @@ export default function Transactions() {
               {h}
             </p>
           ))}
+          <span aria-hidden="true" />
         </div>
 
         {/* Rows */}
@@ -128,7 +177,12 @@ export default function Transactions() {
         ) : (
           <ul className="divide-y divide-slate-800/60">
             {filtered.map((t) => (
-              <TransactionRow key={t._id} transaction={t} />
+              <TransactionRow
+                key={t._id}
+                transaction={t}
+                onEdit={() => setEditTarget(t)}
+                onDelete={() => setDeleteTarget(t)}
+              />
             ))}
           </ul>
         )}
@@ -143,17 +197,45 @@ export default function Transactions() {
           </div>
         )}
       </div>
+
+      {/* Edit modal */}
+      <EditTransactionModal
+        isOpen={!!editTarget}
+        transaction={editTarget}
+        onClose={() => {
+          setEditTarget(null);
+          setSubmitError(null);
+        }}
+        onSubmit={handleUpdateTransaction}
+        isSubmitting={isSubmitting}
+        submitError={submitError}
+      />
+
+      {/* Delete confirmation */}
+      <ConfirmModal
+        isOpen={!!deleteTarget}
+        icon={Trash2}
+        title="Delete this transaction?"
+        message={
+          deleteTarget
+            ? `${deleteTarget.category} — ${formatAmount(deleteTarget.amount)} will be permanently deleted.`
+            : ""
+        }
+        confirmLabel="Delete Transaction"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => setDeleteTarget(null)}
+      />
     </div>
   );
 }
 
 // ----- Sub-components ------------------------------------------------
 
-function TransactionRow({ transaction: t }) {
+function TransactionRow({ transaction: t, onEdit, onDelete }) {
   const isIncome = t.type === "income";
 
   return (
-    <li className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_1fr_1fr] gap-1 sm:gap-4 px-5 py-4 hover:bg-slate-800/40 transition-colors">
+    <li className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_1fr_1fr_72px] gap-1 sm:gap-4 px-5 py-4 hover:bg-slate-800/40 transition-colors">
       {/* Date */}
       <div className="flex items-center gap-2">
         <span
@@ -204,13 +286,49 @@ function TransactionRow({ transaction: t }) {
       </div>
 
       {/* Amount */}
-      <div className="sm:flex sm:items-center">
+      <div className="flex items-center justify-between sm:justify-start">
         <p
           className={`text-[14px] font-semibold ${isIncome ? "text-emerald-400" : "text-rose-400"}`}
         >
           {isIncome ? "+" : "-"}
           {formatAmount(t.amount)}
         </p>
+
+        {/* Actions (mobile: inline with amount) */}
+        <div className="flex items-center gap-1 sm:hidden">
+          <button
+            onClick={onEdit}
+            className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+            aria-label="Edit transaction"
+          >
+            <Pencil size={13} />
+          </button>
+          <button
+            onClick={onDelete}
+            className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+            aria-label="Delete transaction"
+          >
+            <Trash2 size={13} />
+          </button>
+        </div>
+      </div>
+
+      {/* Actions (desktop: own column) */}
+      <div className="hidden sm:flex sm:items-center sm:justify-end gap-1">
+        <button
+          onClick={onEdit}
+          className="p-1.5 rounded-md text-slate-500 hover:text-slate-300 hover:bg-slate-800 transition-colors"
+          aria-label="Edit transaction"
+        >
+          <Pencil size={13} />
+        </button>
+        <button
+          onClick={onDelete}
+          className="p-1.5 rounded-md text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 transition-colors"
+          aria-label="Delete transaction"
+        >
+          <Trash2 size={13} />
+        </button>
       </div>
     </li>
   );
@@ -222,9 +340,9 @@ function SkeletonRows() {
       {Array.from({ length: 5 }).map((_, i) => (
         <li
           key={i}
-          className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_1fr_1fr] gap-4 px-5 py-4"
+          className="grid grid-cols-1 sm:grid-cols-[1fr_1.5fr_1fr_1fr_72px] gap-4 px-5 py-4"
         >
-          {[" w-24", "w-40", "w-20", "w-20"].map((w, j) => (
+          {[" w-24", "w-40", "w-20", "w-20", "w-8"].map((w, j) => (
             <div
               key={j}
               className={`h-4 rounded-lg bg-slate-800 animate-pulse ${w}`}
